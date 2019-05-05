@@ -1,6 +1,3 @@
-For a full description, please visit mcasm's home, at
- https://www.bedroomlan.org/projects/mcasm/.
-
 This is a simple microcode assembler (or microassembler). It can be used to
 generate wide, horizontal microcode ROMs for relatively simple CPU
 architectures. It's mainly intended for hobbyists working on home-designed
@@ -8,6 +5,11 @@ CPUs. Using a description of the microcode, it generates one or more ROM,
 EPROM, EEPROM, Flash et cetera images suitable for inclusion in a software
 emulator, a hardware device, or for use in a hardware description language such
 as Verilog or VHDL.
+
+For a full description, please visit https://www.bedroomlan.org/projects/mcasm/.
+ 
+This tool was written to build the microcode for my scratch-built 16-bit
+minicomputer, the CFT. Read about that at https://www.bedroomlan.org/cft/.
 
 ## Microcode in Theory
 
