@@ -1,0 +1,397 @@
+Content-type: text/html
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MCASM</TITLE>
+</HEAD><BODY>
+<H1>MCASM</H1>
+Section: User Commands  (1)<BR>Updated: September 27, 2011<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+mcasm - Microcode Assembler
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>mcasm</B>
+
+[-cdehmpsVv]
+
+[-o
+
+<I>OUTPUT-FILENAME</I>
+
+]
+
+[--out
+
+<I>OUTPUT-FILENAME</I>
+
+]
+
+[--preprocess]
+
+[--stats]
+
+[--dump]
+
+[--mappings]
+
+[--help]
+
+[--version]
+
+<I>FILE</I>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>mcasm</B> is a Microcode assembler.
+<P>
+
+It accepts as input a file describing microcode and produces one or
+more ROM, EPROM, EEPROM, Flash etc images suitable for inclusion in a
+software emulator or a hardware device.
+<P>
+
+Before moving to the options, it will be necessary to offer a gentler
+introduction into microcode and microcode ROMs, and explain a number
+of definitions used throughout this document.
+<A NAME="lbAE">&nbsp;</A>
+<H2>MICROCODE</H2>
+
+According to the Wikipedia entry, Microcode is a layer of
+hardware-level instructions and/or data structures involved in the
+implementation of higher level machine code instructions in many
+computers and other processors; it resides in a special high-speed
+memory and translates machine instructions into sequences of detailed
+circuit-level operations. It helps separate the machine instructions
+from the underlying electronics so that instructions can be designed
+and altered more freely. It also makes it feasible to build complex
+multi-step instructions while still reducing the complexity of the
+electronic circuitry compared to other methods. Writing microcode is
+often called microprogramming and the microcode in a particular
+processor implementation is sometimes called a microprogram.
+<A NAME="lbAF">&nbsp;</A>
+<H2>MOTIVATION</H2>
+
+Writing microcode for a large, existing architecture is an art form,
+and one with its own tools. However, hobbyists also find themselves in
+need of writing microcode for homebrew CPUs or other microcodable
+devices. In that case, having a small, generic tool would speed up
+development, and reduce the chance of bugs making their way to
+hardware, where they could conveivable even damage lovingly assembled
+electronics.
+<A NAME="lbAG">&nbsp;</A>
+<H2>SOME TERMS</H2>
+
+Microcode is a two-dimensional structure. It helps to see it as a
+table where rows are microprogram addresses, and columns are
+microprogram instructions.
+<P>
+
+A <B>micro-instruction</B> is a long bitstring separated into a number
+of <B>fields</B>, each one or more bits wide. Each field controls one
+of the units of the microprocessor in some way, or sends out various
+<B>signals</B>. Each field may have one value and one value only.
+<P>
+
+Single-bit signals may be either <B>0</B> or <B>1</B>. Multiple-bit
+signals may be any binary number.
+<P>
+
+Microcode <B>addresses</B> are actually composite structures, formed
+from a number of different sources. There is a conventional
+`microprogram counter’ which holds the microinstruction currently
+executed, but a number of other pieces of information also make up the
+final address of the microinstruction, e.g. the instruction register,
+the reset signal, flag registers, et cetera.
+<P>
+
+We call these pieces of information <B>conditions</B>. A
+<B>condition</B> is part of the address of a micro-instruction.
+<P>
+
+A single-bit condition may be <B>0</B>, <B>1</B> or <B>X</B> (don't-care)
+if we it's not implicated in a particular micro-program. Multiple-bit
+conditions may involve any permuation of these three values.
+<P>
+
+In mathematical terms, microcode is a multivariate function mapping
+condition field values to signals. In computer science terms,
+microcode is a way of specifying a Finite State Machine with a
+potentially huge number of states.
+<A NAME="lbAH">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<B>mcasm</B> accepts the following options:
+<DL COMPACT>
+<DT><B>-c</B>, <B>--c</B>
+
+<DD>
+Outputs the ROM images as C code in the form of a header file. The
+header file contains bitfield structures for the ROM's address and
+data fields, macros for creating ROM addresses, macros for checking
+parts of the data (output), and an array with the ROM data itself,
+which may be conditionally compiled into a C source file as needed.
+<B>-d</B>, <B>--debug</B>
+
+Prints out a human-readable form of the assembled ROM. This is mostly
+meant for debugging of the assembler itself, but may also be used to
+debug the microcode.
+<DT><B>-e</B>, <B>--verilog</B>
+
+<DD>
+Outputs one or more `binary' files for Verilog use. Each file
+corresponds to an 8-bit-wide ROM and may be read with the
+<B>$readmemb</B>
+
+
+containing ASCII representations of binary numbers:
+</DL>
+<P>
+
+<TT>
+<DL COMPACT><DT><DD>
+</TT><PRE>
+00001011 // addr=0000
+00001011 // addr=0001
+00011001 // addr=0002
+00000000 // addr=0003
+00000000 // addr=0004
+00000000 // addr=0005
+00000000 // addr=0006
+00000000 // addr=0007
+</PRE>
+
+</DL>
+
+<P>
+
+
+<B>-h</B>, <B>--help</B>
+
+List all available options and their meanings.
+<DL COMPACT>
+<DT><B>-m</B>, <B>--mappings</B>
+
+<DD>
+Prints out the symbol to bit mappings for conditions and signals. This
+can prove useful in generating hardware descriptions, as well as debugging.
+<DT><B>-p</B>, <B>--preprocess</B>
+
+<DD>
+Preprocess output and exit immediately. The default preprocessor is
+the C compiler's C Preprocessor. This may be overridden by setting the
+<B>CPP</B> environment variable to a suitable preprocessor.
+<DT><B>-s</B>, <B>--stats</B>
+
+<DD>
+Output statistics on the microcode. The statistics include the
+recommended number and size of the microcode ROMs as well as
+statistics on the biggest microprogram, and optimisation suggestions.
+<DT><B>-V</B>, <B>--vhdl</B>
+
+<DD>
+Output a VHDL fragment containing the information in the microcode
+table. The fragment is sent to standard output.
+<DT><B>-v</B>, <B>--verbose</B>
+
+<DD>
+Be verbose. Prints out each parsed microprogram. If <B>--C</B> or
+<B>--color</B> is specified and the standard output is capable of it,
+the output will be colour-coded for readability.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>MICROCODE SYNTAX</H2>
+
+<P>
+
+First things first: <B>mcasm</B> uses the C preprocessor (or any other
+preprocessor specified in the <B>CPP</B> environment variable) to allow
+for macros and, in the future, conditional compilation. If you are not
+comfortable with the C Preprocessor, please start by reading how it
+works and how it transforms text.
+<P>
+
+Having said that, this is a very brief example of a microcode input
+file:
+<P>
+
+<DL COMPACT><DT><DD>
+<TT>
+</TT><PRE>
+// Minimum Microcode file.
+
+cond OP:4;
+cond uaddr:3;
+
+signal /MEMIO    = ....1;
+signal MREAD     = ...1.;
+signal MWRITE    = ..1..;
+
+field  REGMOVE   = XX___;
+signal MAR &lt;- PC = 01...;
+signal IR &lt;- MEM = 10...;
+
+start OP=XXXX; // A tiny fetch instruction
+  /MEMIO, MREAD, MAR &lt;- PC;   // 
+  hold;                       // Same as MEMIO, MREAD, MAR &lt;- PC
+  hold, -MREAD, IR &lt;- MEM;    // Same as MEMIO, MAR &lt;- PC, IR &lt;- MEM
+
+// End of file.
+</PRE>
+
+
+</DL>
+
+<P>
+
+C multi-line comments <B>/* ... */</B> and C++ single-line 
+comments <B>// ...</B> are both understood.
+<P>
+
+All declarations must end in a semicolon.
+<P>
+
+This defines two fields in the ROM's address: the <B>OP</B> field, four
+bits wide, and the <B>uaddr</B> field, which is three bits wide. The
+last <B>cond</B> defined is the least significant part of the address.
+<P>
+
+The condition <B>uaddr</B> is the microprogram counter and is
+mandatory.
+<P>
+
+The <B>signal</B> declarations define the output of the ROM. The
+bitfield for each signal is specified in binary. You may use the
+traditional values 0 and 1. For increased readability, you may also
+use the characters `.' or `-' for zero.
+<P>
+
+Conditionals are made up of letters, numbers, and non-whitespace characters
+except colons (<B>:</B>), semicolons (<B>;</B>) and equal signs (<B>=</B>).
+<P>
+
+Signal names may contain any character except the equals sign
+(=). Notably, they may include spaces (for legibility). A signal may
+not start with a minus sign (<B>-</B>).
+<P>
+
+Signals starting with a slash (<B>/</B>) are recognised as active-low
+signals. Their bitstrings are inverted when the ROM is output.
+<P>
+
+Fields may be named for convenience. Macros to extract field values
+will be added to any C output generated. Field definitions may use
+<B>X</B>, <B>x</B> or <B>+</B> to specify a bit that's included in the
+field, and <B>.</B>, <B>_</B>, or <B>-</B> to specify bits that are
+excluded from the field.
+<P>
+
+Microprograms are declared with the <B>start</B> keyword, followed by a
+comma-separated set of conditionals and their values in the format
+<I>cond</I>=<I>value</I>. If a particular field is immaterial to a
+microprogram, a don't care value may be specified using the standard
+electronics don't care symbol, <B>X</B>.
+<P>
+
+After the <B>start</B> keyword, the microprogram may be specified. Each
+line of the microprogram defines a comma separated list of zero or
+more signal names as defined previously. The order of signals in each
+line does not matter. Lines are terminated with semicolons (so that,
+in practice, each may span multiple actual lines in the source code).
+<P>
+
+A special keyword used in some cases is <B>hold</B>. When encountered,
+it indicates that the set of signals active on the previous line
+should be active on the line where <B>hold</B> appears. In this case,
+some signals may be deactivated by listing them prefixed with a
+minus. For example, the <B>-MREAD</B> specification on line 3 of the
+microprogram above turns off the <B>MREAD</B> signal.
+<P>
+
+Multiple microprograms may be specified with multiple <B>start</B>
+keywords. When using don't-care values, start with the least specific
+(most <B>X</B> bits) microprograms and move on to the most specific ones.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>HISTORY</H2>
+
+<P>
+
+This program originated as the microcode compiler for the CFT CPU.
+<A NAME="lbAK">&nbsp;</A>
+<H2>BUGS</H2>
+
+<P>
+
+There are probably quite a few here and there, although thankfully not
+in the code generation. Using the C Preprocessor makes the program
+fairly kludgy.
+<P>
+
+Error reporting could be somewhat better.
+<A NAME="lbAL">&nbsp;</A>
+<H2>RESTRICTIONS</H2>
+
+<B>mcasm</B> can generate microcode for architectures where microcode
+jumps around a lot, but its syntax is more suited to architectures
+where microcode is executed mostly sequentially with occasional
+jumps. If your architecture doesn't even have the notion of a
+microprogram, <B>mcasm</B> may not suit you.
+<A NAME="lbAM">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+Written and maintained by Alexios Chouchoulas &lt;<A HREF="mailto:alexios@bedroomlan.org">alexios@bedroomlan.org</A>&gt;.
+<A NAME="lbAN">&nbsp;</A>
+<H2>REPORTING BUGS</H2>
+
+Report bugs to Alexios Chouchoulas &lt;<A HREF="mailto:alexios@bedroomlan.org">alexios@bedroomlan.org</A>&gt;.
+<A NAME="lbAO">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+Copyright &#169; 2011 Alexios Chouchoulas &lt;<A HREF="mailto:alexios@bedroomlan.org">alexios@bedroomlan.org</A>&gt;.
+<BR>
+
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT><A HREF="#lbAB">NAME</A><DD>
+<DT><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT><A HREF="#lbAE">MICROCODE</A><DD>
+<DT><A HREF="#lbAF">MOTIVATION</A><DD>
+<DT><A HREF="#lbAG">SOME TERMS</A><DD>
+<DT><A HREF="#lbAH">OPTIONS</A><DD>
+<DT><A HREF="#lbAI">MICROCODE SYNTAX</A><DD>
+<DT><A HREF="#lbAJ">HISTORY</A><DD>
+<DT><A HREF="#lbAK">BUGS</A><DD>
+<DT><A HREF="#lbAL">RESTRICTIONS</A><DD>
+<DT><A HREF="#lbAM">AUTHOR</A><DD>
+<DT><A HREF="#lbAN">REPORTING BUGS</A><DD>
+<DT><A HREF="#lbAO">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 18:12:44 GMT, September 28, 2011
+</BODY>
+</HTML>

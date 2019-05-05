@@ -1,0 +1,288 @@
+.\"                              hey, Emacs:   -*- nroff -*-
+.\" mcasm is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; see the file COPYING.  If not, write to
+.\" the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+.\"
+.TH MCASM 1 "September 27, 2011"
+.\" Please update the above date whenever this man page is modified.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins (default)
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+mcasm \- Microcode Assembler
+.SH SYNOPSIS
+.B mcasm
+.RI [-cdehmpsVv]
+.RI [-o 
+.I OUTPUT-FILENAME
+.RI ]
+.RI [--out
+.I OUTPUT-FILENAME
+.RI ]
+.RI [--preprocess]
+.RI [--stats]
+.RI [--dump]
+.RI [--mappings]
+.RI [--help]
+.RI [--version]
+.I FILE
+.SH DESCRIPTION
+\fBmcasm\fP is a Microcode assembler.
+.PP
+It accepts as input a file describing microcode and produces one or
+more ROM, EPROM, EEPROM, Flash etc images suitable for inclusion in a
+software emulator or a hardware device.
+.PP
+Before moving to the options, it will be necessary to offer a gentler
+introduction into microcode and microcode ROMs, and explain a number
+of definitions used throughout this document.
+.SH MICROCODE
+According to the Wikipedia entry, Microcode is a layer of
+hardware-level instructions and/or data structures involved in the
+implementation of higher level machine code instructions in many
+computers and other processors; it resides in a special high-speed
+memory and translates machine instructions into sequences of detailed
+circuit-level operations. It helps separate the machine instructions
+from the underlying electronics so that instructions can be designed
+and altered more freely. It also makes it feasible to build complex
+multi-step instructions while still reducing the complexity of the
+electronic circuitry compared to other methods. Writing microcode is
+often called microprogramming and the microcode in a particular
+processor implementation is sometimes called a microprogram.
+.SH MOTIVATION
+Writing microcode for a large, existing architecture is an art form,
+and one with its own tools. However, hobbyists also find themselves in
+need of writing microcode for homebrew CPUs or other microcodable
+devices. In that case, having a small, generic tool would speed up
+development, and reduce the chance of bugs making their way to
+hardware, where they could conveivable even damage lovingly assembled
+electronics.
+.SH SOME TERMS
+Microcode is a two-dimensional structure. It helps to see it as a
+table where rows are microprogram addresses, and columns are
+microprogram instructions.
+.PP
+A \fBmicro-instruction\fP is a long bitstring separated into a number
+of \fBfields\fP, each one or more bits wide. Each field controls one
+of the units of the microprocessor in some way, or sends out various
+\fBsignals\fP. Each field may have one value and one value only.
+.PP
+Single-bit signals may be either \fB0\fP or \fB1\fP. Multiple-bit
+signals may be any binary number.
+.PP
+Microcode \fBaddresses\fP are actually composite structures, formed
+from a number of different sources. There is a conventional
+`microprogram counter’ which holds the microinstruction currently
+executed, but a number of other pieces of information also make up the
+final address of the microinstruction, e.g. the instruction register,
+the reset signal, flag registers, et cetera.
+.PP
+We call these pieces of information \fBconditions\fP. A
+\fBcondition\fP is part of the address of a micro-instruction.
+.PP
+A single-bit condition may be \fB0\fP, \fB1\fP or \fBX\fP (don't-care)
+if we it's not implicated in a particular micro-program. Multiple-bit
+conditions may involve any permuation of these three values.
+.PP
+In mathematical terms, microcode is a multivariate function mapping
+condition field values to signals. In computer science terms,
+microcode is a way of specifying a Finite State Machine with a
+potentially huge number of states.
+.SH OPTIONS
+\fBmcasm\fP accepts the following options:
+.TP
+.BR -c ", " --c
+Outputs the ROM images as C code in the form of a header file. The
+header file contains bitfield structures for the ROM's address and
+data fields, macros for creating ROM addresses, macros for checking
+parts of the data (output), and an array with the ROM data itself,
+which may be conditionally compiled into a C source file as needed.
+.BR -d ", " --debug
+Prints out a human-readable form of the assembled ROM. This is mostly
+meant for debugging of the assembler itself, but may also be used to
+debug the microcode.
+.TP
+.BR -e ", " --verilog
+Outputs one or more `binary' files for Verilog use. Each file
+corresponds to an 8-bit-wide ROM and may be read with the
+.B $readmemb
+.BR system task. Counter-intuitively, the contents of these files are ASCII text
+containing ASCII representations of binary numbers:
+.PP
+\f(CW
+.RS
+.nf
+00001011 // addr=0000
+00001011 // addr=0001
+00011001 // addr=0002
+00000000 // addr=0003
+00000000 // addr=0004
+00000000 // addr=0005
+00000000 // addr=0006
+00000000 // addr=0007
+.fi
+.RE
+.PP
+\fR
+.BR -h ", " --help
+List all available options and their meanings.
+.TP
+.BR -m ", " --mappings
+Prints out the symbol to bit mappings for conditions and signals. This
+can prove useful in generating hardware descriptions, as well as debugging.
+.TP
+.BR -p ", " --preprocess
+Preprocess output and exit immediately. The default preprocessor is
+the C compiler's C Preprocessor. This may be overridden by setting the
+\fBCPP\fP environment variable to a suitable preprocessor.
+.TP
+.BR -s ", " --stats
+Output statistics on the microcode. The statistics include the
+recommended number and size of the microcode ROMs as well as
+statistics on the biggest microprogram, and optimisation suggestions.
+.TP
+.BR -V ", " --vhdl
+Output a VHDL fragment containing the information in the microcode
+table. The fragment is sent to standard output.
+.TP
+.BR -v ", " --verbose
+Be verbose. Prints out each parsed microprogram. If \fB--C\fP or
+\fB--color\fP is specified and the standard output is capable of it,
+the output will be colour-coded for readability.
+.SH MICROCODE SYNTAX
+.PP
+First things first: \fBmcasm\fP uses the C preprocessor (or any other
+preprocessor specified in the \fBCPP\fP environment variable) to allow
+for macros and, in the future, conditional compilation. If you are not
+comfortable with the C Preprocessor, please start by reading how it
+works and how it transforms text.
+.PP
+Having said that, this is a very brief example of a microcode input
+file:
+.PP
+.RS
+\f(CW
+.nf
+// Minimum Microcode file.
+
+cond OP:4;
+cond uaddr:3;
+
+signal /MEMIO    = ....1;
+signal MREAD     = ...1.;
+signal MWRITE    = ..1..;
+
+field  REGMOVE   = XX___;
+signal MAR <- PC = 01...;
+signal IR <- MEM = 10...;
+
+start OP=XXXX; // A tiny fetch instruction
+  /MEMIO, MREAD, MAR <- PC;   // 
+  hold;                       // Same as MEMIO, MREAD, MAR <- PC
+  hold, -MREAD, IR <- MEM;    // Same as MEMIO, MAR <- PC, IR <- MEM
+
+// End of file.
+.fi
+\fR
+.RE
+.PP
+C multi-line comments \fB/* ... */\fP and C++ single-line 
+comments \fB// ...\fP are both understood.
+.PP
+All declarations must end in a semicolon.
+.PP
+This defines two fields in the ROM's address: the \fBOP\fP field, four
+bits wide, and the \fBuaddr\fP field, which is three bits wide. The
+last \fBcond\fP defined is the least significant part of the address.
+.PP
+The condition \fBuaddr\fP is the microprogram counter and is
+mandatory.
+.PP
+The \fBsignal\fP declarations define the output of the ROM. The
+bitfield for each signal is specified in binary. You may use the
+traditional values 0 and 1. For increased readability, you may also
+use the characters `.' or `-' for zero.
+.PP
+Conditionals are made up of letters, numbers, and non-whitespace characters
+except colons (\fB:\fP), semicolons (\fB;\fP) and equal signs (\fB=\fP).
+.PP
+Signal names may contain any character except the equals sign
+(=). Notably, they may include spaces (for legibility). A signal may
+not start with a minus sign (\fB-\fP).
+.PP
+Signals starting with a slash (\fB/\fP) are recognised as active-low
+signals. Their bitstrings are inverted when the ROM is output.
+.PP
+Fields may be named for convenience. Macros to extract field values
+will be added to any C output generated. Field definitions may use
+\fBX\fP, \fBx\fP or \fB+\fP to specify a bit that's included in the
+field, and \fB.\fP, \fB_\fP, or \fB-\fP to specify bits that are
+excluded from the field.
+.PP
+Microprograms are declared with the \fBstart\fP keyword, followed by a
+comma-separated set of conditionals and their values in the format
+\fIcond\fP=\fIvalue\fP. If a particular field is immaterial to a
+microprogram, a don't care value may be specified using the standard
+electronics don't care symbol, \fBX\fP.
+.PP
+After the \fBstart\fP keyword, the microprogram may be specified. Each
+line of the microprogram defines a comma separated list of zero or
+more signal names as defined previously. The order of signals in each
+line does not matter. Lines are terminated with semicolons (so that,
+in practice, each may span multiple actual lines in the source code).
+.PP
+A special keyword used in some cases is \fBhold\fP. When encountered,
+it indicates that the set of signals active on the previous line
+should be active on the line where \fBhold\fP appears. In this case,
+some signals may be deactivated by listing them prefixed with a
+minus. For example, the \fB-MREAD\fP specification on line 3 of the
+microprogram above turns off the \fBMREAD\fP signal.
+.PP
+Multiple microprograms may be specified with multiple \fBstart\fP
+keywords. When using don't-care values, start with the least specific
+(most \fBX\fP bits) microprograms and move on to the most specific ones.
+.SH HISTORY
+.PP
+This program originated as the microcode compiler for the CFT CPU.
+.SH BUGS
+.PP
+There are probably quite a few here and there, although thankfully not
+in the code generation. Using the C Preprocessor makes the program
+fairly kludgy.
+.PP
+Error reporting could be somewhat better.
+.SH RESTRICTIONS
+\fBmcasm\fP can generate microcode for architectures where microcode
+jumps around a lot, but its syntax is more suited to architectures
+where microcode is executed mostly sequentially with occasional
+jumps. If your architecture doesn't even have the notion of a
+microprogram, \fBmcasm\fP may not suit you.
+.SH AUTHOR
+Written and maintained by Alexios Chouchoulas <alexios@bedroomlan.org>.
+.SH "REPORTING BUGS"
+Report bugs to Alexios Chouchoulas <alexios@bedroomlan.org>.
+.SH COPYRIGHT
+Copyright \(co 2011 Alexios Chouchoulas <alexios@bedroomlan.org>.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+\"  LocalWords:  mcasm ansi dhs BBS coloured CGA
+\"  LocalWords:  codepages PSTN optimisation CP tq Megistos

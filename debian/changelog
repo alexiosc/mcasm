@@ -1,0 +1,18 @@
+mcasm (1.2) unstable; urgency=low
+
+  * Added Verilog source and altera MIF file support.
+
+ -- Alexios Chouchoulas <alexios@bedroomlan.org>  Wed, 19 Dec 2012 23:02:47 +0200
+
+mcasm (1.1) unstable; urgency=low
+
+  * Added geshi syntax highlighter.
+  * Added emacs mcasm-mode major mode.
+
+ -- Alexios Chouchoulas <alexios@bedroomlan.org>  Mon, 24 Oct 2011 23:15:44 +0300
+
+mcasm (1.0) unstable; urgency=low
+
+  * Initial revision imported from CFT project.
+
+ -- Alexios Chouchoulas <alexios@bedroomlan.org>  Mon, 24 Oct 2011 19:00:40 +0300
