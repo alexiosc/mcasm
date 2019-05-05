@@ -13,6 +13,13 @@ For a full description, please visit https://www.bedroomlan.org/projects/mcasm/.
 This tool was written to build the microcode for my scratch-built 16-bit
 minicomputer, the CFT. Read about that at https://www.bedroomlan.org/cft/.
 
+## Requirements
+
+To run mcasm, you will need:
+
+* Python 3.
+* The C Preprocessor (`cpp`). This usually comes with your C compiler.
+
 ## Microcode in Theory
 
 Microcode is a collection of *microprograms*. Each microprogram depends on a
