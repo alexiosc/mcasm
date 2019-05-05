@@ -1,5 +1,20 @@
 #!/usr/bin/python2.6
-#coding:utf-8
+# coding:utf-8
+#
+# Copyright © 2009–2019 Alexios Chouchoulas
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see [http://www.gnu.org/licenses/].
 
 """
 A microcode generator/assembler for Microcode ROMs.
@@ -95,7 +110,7 @@ For example:
   signal IR <- MEM = 1....
 
   start OP=XXXX # A tiny fetch instruction
-    MEMIO, MREAD, MAR <- PC     # 
+    MEMIO, MREAD, MAR <- PC     #
     hold                        # Same as MEMIO, MREAD, MAR <- PC
     hold, -MREAD, IR <- MEM     # Same as MEMIO, MAR <- PC, IR <- MEM
 
@@ -106,8 +121,7 @@ import os
 import sys
 import array
 import pprint
-import StringIO
-import optparse
+import argparse
 import subprocess
 
 __code = """
@@ -177,7 +191,7 @@ start IRQ=X, RST=X, F=1, OP=XXXX, I=X, SKIP=X
 
 VERILOG_PREAMBLE = """// -*- verilog -*-
 //
-// Generated automatically, DO NOT EDIT.
+// Generated automatically by mcasm, DO NOT EDIT.
 
 `ifdef EXTERNAL_TIMESCALE
   `include "timescale.v"
@@ -199,7 +213,7 @@ endmodule
 """
 
 MIF_HEADER = """-- Altera Memory Initialisation Format (MIF)
--- Generated automatically, do not edit!
+-- Generated automatically by mcasm, do not edit!
 
 DEPTH = %(s)d; -- Number of entries in this ROM
 WIDTH = %(w)d; -- Number of data bits per word.
@@ -214,14 +228,20 @@ MIF_FOOTER = """END;
 -- End of file.
 """
 
+def die(msg, status=1):
+    print("{}: {}".format(sys.argv[0], msg), file=sys.stderr)
+    sys.exit(status)
+
+
 class MicrocodeAssembler(object):
 
-    CPP_LOCATION = '/usr/bin/cpp'
-
     UINSTR_LENGTH = 24
-    
-    def __init__(self, options):
-        self.options = options
+
+    def __init__(self, args):
+        # Get the parsed command line options.
+        self.args = args
+
+        self.want_colour = self.args.color and os.isatty(sys.stdout.fileno())
 
         # Regular expressions
         self.re_comment = re.compile('(#|//).*$')
@@ -229,12 +249,8 @@ class MicrocodeAssembler(object):
         # Internal state.
         self.fname = '?'
         self.lnum = 0
-        self.want_colour = self.options.color and os.isatty(sys.stdout.fileno())
         self.maxuaddr = 0
         self.uprograms = 0
-
-        # Where's the C Preprocessor?
-        self.cpp = os.environ.get('CPP', self.CPP_LOCATION)
 
 
     def ansi(self, s):
@@ -242,30 +258,30 @@ class MicrocodeAssembler(object):
         if not self.want_colour:
             return re.sub('\033\[[^m]+m', '', s)
         return s.replace('\n', '\033[0m\n')
-    
-    
+
+
     def pansi(self, *args):
         """Print with colour."""
-        print self.ansi(' '.join(args))
-        
-    
+        print(self.ansi(' '.join(args)))
+
+
     def wansi(self, *args):
         """Print with colour."""
         sys.stdout.write(self.ansi(' '.join(args)))
-        
-    
+
+
     def error(self, msg):
         sys.stderr.write(self.ansi("%s:%d: \033[0;1;31m%s\n" % (self.fname, self.lnum, msg)))
         sys.exit(1)
-    
+
 
     def warning(self, msg):
         sys.stderr.write(self.ansi("%s:%d: \033[0;1;33mwarning: %s\n" % (self.fname, self.lnum, msg)))
-    
+
 
     def proper_bin(self, x, nb=16):
         return bin(x)[2:].zfill(nb)
-    
+
 
     def permute(self, a):
         if a == '':
@@ -277,8 +293,8 @@ class MicrocodeAssembler(object):
         else:
             for rest in self.permute(a[1:]):
                 yield a[0] + rest
-    
-    
+
+
     def set_microcode(self, addr, data, notes=''):
         addr = ''.join(addr).lower()
         try:
@@ -308,7 +324,7 @@ class MicrocodeAssembler(object):
         # Is there a label?
         if ':' in line:
             label, line = line.split(':', 1)
-            if self.options.verbose:
+            if self.args.verbose:
                 self.pansi('\033[0;1;35m%s\033[0m' % label)
         return line
 
@@ -318,30 +334,30 @@ class MicrocodeAssembler(object):
         buf = ''
         self.lnum = 0
         for line in source:
-            #print '***', self.lnum, line.rstrip()
+            #print('***', self.lnum, line.rstrip())
             self.lnum += 1
             if not line:
                 yield ''
-                break
+                continue
 
             # Parse line number magic comments from cpp.
             x = re.findall('^# (\d+) ".+"$', line.strip())
             if x:
                 self.lnum = int(x[0])
-    
+
             line = self.re_comment.sub('', line)
             line = line.strip()
-            
+
             buf += ' ' + line
             while ';' in buf:
                 x = buf.split(';', 1)
                 yield x[0].strip()
                 buf = x[1].strip()
-    
+
         if buf:
             yield buf
 
-        
+
     def process(self, fname, outfname):
         self.fname = fname
 
@@ -360,15 +376,24 @@ class MicrocodeAssembler(object):
         used_signals = set()
 
         # Spawn preprocessor.
-        
-        cmd = '%s %s' % (self.cpp, fname)
-        source = subprocess.Popen(cmd, shell=True, bufsize=4096, stdout=subprocess.PIPE).stdout
 
-        if self.options.preprocess:
-            sys.stdout.write(source.read())
+        try:
+            cmd = [self.args.cpp, fname]
+            source = subprocess.check_output(cmd).decode('utf-8')
+
+        except subprocess.CalledProcessError as e:
+            die("{} {} returned exit status {}".format(self.args.cpp, fname, e.returncode))
+
+        except FileNotFoundError as e:
+            die("preprocessor {} was not found or is not accessible.".format(self.args.cpp))
+
+        if self.args.preprocess:
+            sys.stdout.write(source)
             sys.exit(0)
 
-        for line in self.getstatement(source):
+        #pprint.pprint(source.split('\n'))
+
+        for line in self.getstatement(source.split('\n')):
             # Skip empty lines.
             if not line:
                 continue
@@ -387,9 +412,9 @@ class MicrocodeAssembler(object):
                     self.error("Condition '%s' width must be a natural number." % (condname))
                 self.conds.append(condname)
                 self.condwidths[condname] = condbits
-                if self.options.mappings:
+                if self.args.mappings:
                     self.pansi('# cond %s: %d' % (condname, condbits))
-        
+
             elif line.startswith('field'):
                 try:
                     sigspec = re.findall('field\s+(.*\S)\s*=\s*(\S+)', line).pop()
@@ -399,7 +424,7 @@ class MicrocodeAssembler(object):
                     fieldbits = sigspec[1].strip()
                 except:
                     self.error('Expected "field SOME-FIELD = MASK-FIELD"')
-                    
+
                 try:
                     fieldbits = re.sub('[._-]', '0', fieldbits)
                     fieldbits = re.sub('[X+x]', '1', fieldbits)
@@ -409,14 +434,14 @@ class MicrocodeAssembler(object):
                     shift = 0
                     while ((fieldbits >> shift) & 1) == 0:
                         shift +=1
-                        
+
                     self.fields.append((fieldname, fieldbits, shift, fieldbits >> shift))
                 except:
                     self.error('Bit field should be a binary number (. or - are aliases of 0 for readability)')
-                    
-                if self.options.mappings:
+
+                if self.args.mappings:
                     self.pansi('# field', fieldname, self.proper_bin(fieldbits, 1))
-                
+
             elif line.startswith('signal'):
                 try:
                     sigspec = re.findall('signal\s+(.*\S)\s*=\s*(\S+)', line).pop()
@@ -426,21 +451,21 @@ class MicrocodeAssembler(object):
                     sigbits = sigspec[1].strip()
                 except:
                     self.error('Expected "signal SOME-SIGNAL = BIT-FIELD"')
-                    
+
                 try:
                     sigbits = re.sub('[.-]', '0', sigbits)
                     sigbits = int(sigbits, 2)
                 except:
                     self.error('Bit field should be a binary number (. or - are aliases of 0 for readability)')
-                    
+
                 self.signals[signame.lower()] = sigbits
-                if self.options.mappings:
+                if self.args.mappings:
                     self.pansi('# signal', signame, self.proper_bin(sigbits, 1))
-        
+
             elif line.startswith('start'):
                 condre = '(\w+)\s*=\s*([01xX]+)'
                 if not re.match('^start\s+' + condre + '(\s*,\s*' + condre + ')*\s*$', line):
-                    print line
+                    print(line)
                     self.error('Syntax error parsing "start" directive.')
                 if 'uaddr' not in self.conds:
                     self.error("The mandatory conditional 'uaddr' has not been defined.")
@@ -452,9 +477,9 @@ class MicrocodeAssembler(object):
                 uinstr = self.idleinstr()
                 uaddr = 0
                 state = 1
-                if self.options.verbose:
-                    print
-        
+                if self.args.verbose:
+                    print()
+
             else:
                 if state == 0:
                     self.error("Microcode seen before first 'start' keyword.")
@@ -463,7 +488,7 @@ class MicrocodeAssembler(object):
                     uinstr = self.idleinstr()
                 else:
                     sigspec = [x for x in sigspec if x != 'hold']
-        
+
                 for signal in sigspec:
                     used_signals = used_signals | set([signal.lower()])
                     enable = True
@@ -475,29 +500,29 @@ class MicrocodeAssembler(object):
                     if signal.startswith('/'):
                         enable = not enable
                         pass
-        
+
                     try:
                         if enable:
                             uinstr |= self.signals[signal.lower()]
                         else:
                             uinstr &= ~self.signals[signal.lower()]
-        
+
                     except KeyError:
                         self.error("Unknown signal name '%s'." % signal)
-        
+
                 # Output the microcode line.
                 #self.pansi(condspecs + [('uaddr', bin(uaddr)[2:])], signals)
-        
+
                 # Prepare for encoding.
                 d = dict()
-        
+
                 # Add the microaddress to the conditions.
                 self.condspecs.append(('uaddr', self.proper_bin(uaddr, self.condwidths['uaddr'])))
-        
+
                 # Turn the conditions into a dictionary.
                 for sig, val in self.condspecs:
                     d[sig] = val # self.proper_bin(val, self.condwidths[sig])
-                    
+
                 # Order the conditions using the order of conds
                 romaddr = list()
                 for c in self.conds:
@@ -508,17 +533,16 @@ class MicrocodeAssembler(object):
                         romaddr.append(d[c])
                     except (AssertionError, KeyError):
                         self.error("Missing value for condition '%s'" % c)
-        
+
                 # Print out the conditions.
-                if self.options.verbose:
+                if self.args.verbose:
                     for c in self.conds:
                         self.wansi('%s:\033[1;32m%s\033[0m ' % (c, d[c]))
-                    self.wansi(': \033[1;33m%s\033[0m ; %s' % (bin(uinstr)[2:].zfill(self.UINSTR_LENGTH), line))
-                    print
-                    
+                    self.pansi(': \033[1;33m%s\033[0m ; %s' % (bin(uinstr)[2:].zfill(self.UINSTR_LENGTH), line))
+
                 # Write to the ROM.
                 self.set_microcode(romaddr, uinstr, (' %-40s ' % ' '.join(sigspec)))
-        
+
                 uaddr += 1
                 self.maxuaddr = max(self.maxuaddr, uaddr)
                 if uaddr > (1 << self.condwidths['uaddr']):
@@ -529,44 +553,49 @@ class MicrocodeAssembler(object):
         if unused_signals:
             for a in unused_signals:
                 self.warning('Unused signal "%s".' % a)
-        
+
+        if not self.signals:
+            die("no output signals declared.")
+
         self.totalconds = sum(self.condwidths.values())
         self.romsize = 1 << self.totalconds
         self.totalsigs = max(len(bin(x)) for x in self.signals.values()) - 2
         self.numroms = (self.totalsigs + 7) // 8
 
-        if self.options.stats:
-            slackbits = 0
+        if self.args.stats:
             usedbits = 0
             x = max(0, self.maxuaddr - 1)
+            # An idiot (me!) wrote this log2() replacement.
             while x:
                 usedbits += 1
                 x = x >> 1
 
             self.pansi('\n')
-            self.pansi('# Total microprograms:       %3d' % (self.uprograms,))
-            self.pansi('# Biggest microprogram:      %3d microinstructions' % (self.maxuaddr,))
-            self.pansi('# Uaddr width:               %3d bits' % self.condwidths['uaddr'])
-            self.pansi('# Uaddr should be:           %3d bits wide' % usedbits)
-            self.pansi('# Unneeded uaddr bits:       %3d bits' % (self.condwidths['uaddr'] - slackbits))
-            self.pansi('# Total address bits needed: %3d (%d bytes)' % (self.totalconds, self.romsize))
-            self.pansi('# Total data bits needed:    %3d (%d ROM ICs in parallel)' % (self.totalsigs, self.numroms))
-        
-        if self.options.dump:
+            self.pansi("# Total microprograms:       {:>3}".format(self.uprograms))
+            self.pansi("# Biggest microprogram:      {:>3} microinstruction(s)".format(self.maxuaddr))
+            self.pansi("# Uaddr width:               {:>3} bits".format(self.condwidths['uaddr']))
+            self.pansi("# Uaddr should be:           {:>3} bits wide".format(usedbits))
+            self.pansi("# Unneeded uaddr bits:       {:>3} bits".format(self.condwidths['uaddr'] - usedbits))
+
+            self.pansi("# Total address bits needed: {:>3} ({} bytes)".format(self.totalconds, self.romsize))
+            self.pansi("# Total data bits needed:    {:>3} ({} ROM ICs in parallel)".format(self.totalsigs, self.numroms))
+
+        if self.args.dump:
             self.dump()
-        if self.options.vhdl:
-            self.vhdl()
 
         # Write the ROM dumps.
-        self.writeroms(outfname)
-        if self.options.verilog:
+        if self.args.bin:
+            self.writeroms(outfname)
+        if self.args.vhdl:
+            self.writeroms_vhdl(outfname)
+        if self.args.verilog:
             self.writeroms_verilog(outfname)
             self.writeroms_verilog_code(outfname)
-        if self.options.altera:
+        if self.args.altera:
             self.writeroms_altera(outfname)
-        if self.options.rsar:
+        if self.args.rsar:
             self.writeroms_rsar(outfname)
-        if self.options.c:
+        if self.args.c:
             self.writeroms_c(outfname)
 
 
@@ -575,7 +604,7 @@ class MicrocodeAssembler(object):
         idle = self.idleinstr()
         for addr in range(self.romsize):
             data, pattern = self.microcode.get(addr, (idle, '------------'))
-            
+
             bytedata = list()
             d = data
             for x in range(self.numroms):
@@ -587,28 +616,30 @@ class MicrocodeAssembler(object):
                                                  self.proper_bin(data, self.totalsigs)))
 
 
-    def vhdl(self):
-        """Dump the microcode ROMs as VHDL."""
-        for addr in range(self.romsize):
-            data = self.microcode.get(addr, 0)
-            
-            bytedata = list()
-            try:
-                d = data[0]
-                data = data[0]
-            except TypeError:
-                pass
-            for x in range(self.numroms):
-                bytedata.insert(0, '%02x' % (d & 0xff))
-                d = d >> 8
-            bytedata = ' '.join(bytedata)
+    def writeroms_vhdl(self, outfname):
+        """Dump the microcode ROMs as a wide VHDL ROM."""
+        fname = outfname + ".vhdl"
+        print("Writing {}...".format(fname))
+        with open(fname, "wt") as f:
+            for addr in range(self.romsize):
+                data = self.microcode.get(addr, 0)
+                bytedata = list()
+                try:
+                    d = data[0]
+                    data = data[0]
+                except TypeError:
+                    pass
+                for x in range(self.numroms):
+                    bytedata.insert(0, '%02x' % (d & 0xff))
+                    d = d >> 8
+                bytedata = ' '.join(bytedata)
 
-            data = self.proper_bin(data, self.totalsigs)
-            
-            self.pansi("  d <= \"%s\" when a=\"%s\" and oe='0' and ce='0' else" % \
-                           (data, self.proper_bin(addr, self.totalconds)))
+                data = self.proper_bin(data, self.totalsigs)
 
-        self.pansi("  d <= \"%s\";" % ('Z' * self.totalsigs))
+                f.write("    d <= \"{}\" when a=\"{}\" and oe='0' and ce='0' else\n".format(
+                    data, self.proper_bin(addr, self.totalconds)))
+
+            f.write("    d <= \"{}\";\n".format('Z' * self.totalsigs))
 
 
     def writeroms(self, outfname):
@@ -617,12 +648,12 @@ class MicrocodeAssembler(object):
             fname = '%s-%02d.bin' % (outfname, nrom)
             shift = 8 * nrom
             mask = 0xff << shift
-            print "Writing %s... (mask %x)" % (fname, mask)
-            outdata = array.array('c')
+            print("Writing %s... (mask %x)" % (fname, mask))
+            outdata = array.array('B')
             idle = self.idleinstr()
             for addr in range(self.romsize):
                 data, pattern = self.microcode.get(addr, (idle, '------------'))
-                outdata.append(chr((data & mask) >> shift))
+                outdata.append((data & mask) >> shift)
             outdata.tofile(open(fname, 'wb'))
 
 
@@ -633,8 +664,7 @@ class MicrocodeAssembler(object):
             fname = '%s-%02d.list' % (outfname, nrom)
             shift = 8 * nrom
             mask = 0xff << shift
-            print "Writing %s... (mask %x)" % (fname, mask)
-            outdata = array.array('c')
+            print("Writing %s... (mask %x)" % (fname, mask))
             f = open(fname, 'w')
             idle = self.idleinstr()
             for addr in range(self.romsize):
@@ -649,7 +679,7 @@ class MicrocodeAssembler(object):
         """Write a binary file in Altera MIF format."""
 
         fname = '%s.mif' % (outfname,)
-        print "Writing %s..." % (fname,)
+        print("Writing %s..." % (fname,))
         f = open(fname, 'w')
         s = self.romsize
         d = self.totalconds
@@ -675,7 +705,7 @@ class MicrocodeAssembler(object):
 
         for cls in range(self.totalsigs):
             fname = '%s-%03d.rsar' % (outfname, cls)
-            print "Writing %s..." % (fname,)
+            print("Writing %s..." % (fname,))
             f = open(fname, 'w')
 
             for addr in range(self.romsize):
@@ -689,87 +719,88 @@ class MicrocodeAssembler(object):
     def writeroms_verilog_code(self, outfname):
         """Write Verilog code to simulate the microcode ROM."""
 
-        fname = '%s.v' % (outfname, )
-        f = open(fname, 'w')
-        f.write(VERILOG_PREAMBLE)
+        fname = outfname + '.v'
+        print("Writing %s..." % (fname,))
+        with open(fname, 'wt') as f:
+            f.write(VERILOG_PREAMBLE)
 
-        conds = ', '.join('in_' + self.to_v(x, lower=True) for x in self.conds)
-        
-        f.write('module Microcode(')
-        #f.write(conds)
-        #f.write(',\n                 ')
-        f.write('cond_vector, control_vector);\n\n')
+            conds = ', '.join('in_' + self.to_v(x, lower=True) for x in self.conds)
 
-        #for x in self.conds:
-        #    w = self.condwidths[x]
-        #    if self.condwidths[x] > 1:
-        #        f.write('    input [%d:0] in_%s;\n' % (w - 1, self.to_v(x, lower=True)))
-        #    else:
-        #        f.write('    input in_%s;\n' % (self.to_v(x, lower=True),))
+            f.write('module Microcode(')
+            #f.write(conds)
+            #f.write(',\n                 ')
+            f.write('cond_vector, control_vector);\n\n')
 
-        f.write('\n    input [%d:0] cond_vector;\n' % (self.totalconds - 1, ))
-        f.write('\n    output reg [%d:0] control_vector;\n\n' % (self.totalsigs - 1, ))
+            #for x in self.conds:
+            #    w = self.condwidths[x]
+            #    if self.condwidths[x] > 1:
+            #        f.write('    input [%d:0] in_%s;\n' % (w - 1, self.to_v(x, lower=True)))
+            #    else:
+            #        f.write('    input in_%s;\n' % (self.to_v(x, lower=True),))
 
-        #f.write('    assign cond_vector = {%s};\n\n' % conds)
+            f.write('\n    input [%d:0] cond_vector;\n' % (self.totalconds - 1, ))
+            f.write('\n    output reg [%d:0] control_vector;\n\n' % (self.totalsigs - 1, ))
 
-        f.write('    always @(cond_vector) begin\n')
-        f.write('        case (cond_vector) // synthesis parallel_case\n')
+            #f.write('    assign cond_vector = {%s};\n\n' % conds)
 
-        # Find the default pattern.
-        idle = self.idleinstr()
-        hist = dict()
-        for addr in range(self.romsize):
-            data, pattern = self.microcode.get(addr, (idle, '------------'))
-            try:
-                hist[data] += 1
-            except:
-                hist[data] = 1
-        keys = hist.keys()
-        keys.sort(cmp=lambda a, b: cmp(hist[b], hist[a]))
-        default = keys[0]
+            f.write('    always @(cond_vector) begin\n')
+            f.write('        case (cond_vector) // synthesis parallel_case\n')
 
-        for addr in range(self.romsize):
-            data, pattern = self.microcode.get(addr, (idle, '------------'))
-            if data == default:
-                continue
-            f.write("            (%d'b%s): control_vector <= %d'b%s;\n" % \
-                        (self.totalconds, self.proper_bin(addr, self.totalconds),
-                         self.totalsigs, self.proper_bin(data, self.totalsigs)))
-        f.write("            default: control_vector <= %d'b%s;\n" % \
-                    (self.totalsigs, self.proper_bin(data, self.totalsigs)))
-        f.write('        endcase\n')
-        f.write('    end\n')
+            # Find the default pattern.
+            idle = self.idleinstr()
+            hist = dict()
+            for addr in range(self.romsize):
+                data, pattern = self.microcode.get(addr, (idle, '------------'))
+                try:
+                    hist[data] += 1
+                except:
+                    hist[data] = 1
+            keys = list(hist.keys())
+            keys.sort(key=lambda x: hist[x])
+            default = keys[0]
 
-        f.write(VERILOG_POSTAMBLE)
+            for addr in range(self.romsize):
+                data, pattern = self.microcode.get(addr, (idle, '------------'))
+                if data == default:
+                    continue
+                f.write("            (%d'b%s): control_vector <= %d'b%s;\n" % \
+                            (self.totalconds, self.proper_bin(addr, self.totalconds),
+                             self.totalsigs, self.proper_bin(data, self.totalsigs)))
+            f.write("            default: control_vector <= %d'b%s;\n" % \
+                        (self.totalsigs, self.proper_bin(data, self.totalsigs)))
+            f.write('        endcase\n')
+            f.write('    end\n')
+
+            f.write(VERILOG_POSTAMBLE)
 
 
     C_RESERVED_KEYWORDS = [
         # These are C reserved words
 
-	'_Packed',
-	'else',
-	'enum',
-	'extern',
-	'float',
-	'for',
-	'goto',
-	'if',
-	'int',
-	'long',
-	'register',
-	'return',
-	'short',
-	'signed',
-	'sizeof',
-	'static',
-	'struct',
-	'switch',
-	'typedef',
-	'union',
-	'unsigned',
-	'void',
-	'volatile',
-	'while',
+        '_Packed',
+        'else',
+        'enum',
+        'extern',
+        'float',
+        'for',
+        'goto',
+        'if',
+        'int',
+        'long',
+        'register',
+        'return',
+        'short',
+        'signed',
+        'sizeof',
+        'static',
+        'struct',
+        'switch',
+        'typedef',
+        'union',
+        'unsigned',
+        'void',
+        'volatile',
+        'while',
         'auto',
         'break',
         'case',
@@ -781,7 +812,7 @@ class MicrocodeAssembler(object):
         'double',
         ]
 
-    
+
     VERILOG_RESERVED_KEYWORDS = [
         # These are Verilog reserved words
         'always',
@@ -876,7 +907,7 @@ class MicrocodeAssembler(object):
             x = x + '_'
 
         return x
-            
+
     def to_v(self, x, lower=False):
         """Convert x to a Verilog identifier."""
         if x.startswith('/'):
@@ -893,16 +924,16 @@ class MicrocodeAssembler(object):
             x = x + '_'
 
         return x
-            
+
     def countbits(self, x):
         """
         Count the bits in a number.
-        
+
         This is a low-performance way of doing it.
         """
         return len([x for x in bin(x)[2:] if x == '1'])
 
-            
+
     def find_field(self, pattern):
         """Return the field with the fewest bits that matches pattern."""
         shortest = None
@@ -922,7 +953,7 @@ class MicrocodeAssembler(object):
         """Write a single C99 source code file with the microcode."""
         fname = '%s.h' % outfname
         f = open(fname, 'w')
-        print "Writing %s..." % fname
+        print("Writing %s..." % fname)
         idle = self.idleinstr()
         f.write('/* Automatically generated, do not modify! */\n\n')
         f.write('#ifndef __MICROCODE_H__\n')
@@ -969,8 +1000,8 @@ class MicrocodeAssembler(object):
                              '((x) & 0x%(shiftbits)x)\n') % locals())
 
         # Output the signals in a way similar to the conditions.
-        sigcmp = lambda a,b: cmp(self.signals[a], self.signals[b])
-        for sig in sorted(self.signals.keys(), cmp=sigcmp):
+        sigsort = lambda x: self.signals[x]
+        for sig in sorted(self.signals.keys(), key=sigsort):
             pattern = self.signals[sig]
 
             # If this is an active-low signal, negate the semantics to
@@ -980,7 +1011,7 @@ class MicrocodeAssembler(object):
                 op = '!='
                 comment = ' /* Active low in uROM */'
                 sig = sig[1:]
-            
+
             sig = re.sub('[^A-Za-z0-9_]', '_', sig).upper()
 
             # Find a field, if one is available.
@@ -991,7 +1022,7 @@ class MicrocodeAssembler(object):
                 fieldname = re.sub('[^A-Za-z0-9_]', '_', field[0]).upper()
                 pat = (pattern >> shift) & shiftbits
 
-                f.write(('#define IS_%(sig)s(x) (GET_%(fieldname)s(x) %(op)s 0x%(pat)x)' + 
+                f.write(('#define IS_%(sig)s(x) (GET_%(fieldname)s(x) %(op)s 0x%(pat)x)' +
                          '%(comment)s\n') %
                         locals())
             else:
@@ -1003,7 +1034,7 @@ class MicrocodeAssembler(object):
         f.write('\n\n')
 
         # Finally, output the microcode itself.
-        
+
         # First, decide on the most compact datatype.
 
         width = 1 << self.totalconds
@@ -1039,7 +1070,7 @@ class MicrocodeAssembler(object):
 
         for addr in range(self.romsize):
             data, pattern = self.microcode.get(addr, (idle, '------------'))
-            
+
             bytedata = list()
             d = data
             for x in range(self.numroms):
@@ -1056,52 +1087,98 @@ class MicrocodeAssembler(object):
         f.write('#endif /* __MICROCODE_H__ */\n')
         f.close()
 
-            
 
-p = optparse.OptionParser()
-p.add_option('-d', '--dump', action='store_true',
-             help='Print out raw hex values for the entire microcode ROM.')
-p.add_option('-m', '--mappings', action='store_true',
-             help='Print out the symbol to bit mappings for conditions and signals.')
-p.add_option('-o', '--out', metavar='FILENAME',
-             help='Output object file to FILENAME.')
-p.add_option('-p', '--preprocess', action='store_true',
-             help='Preprocess to standard output and stop. Useful for debugging preprocessing bugs.')
-p.add_option('-s', '--stats', action='store_true',
-             help='Print out statistics about the assembled microcode ROM.')
-p.add_option('-V', '--vhdl', action='store_true',
-             help='Print out the ROM as a VHDL code fragment.')
-p.add_option('-e', '--verilog', action='store_true',
-             help='Print out the ROM as one or more verilog binary list files.')
-p.add_option('-a', '--altera', action='store_true',
-             help='Generate the ROM in Altera MIF format.')
-p.add_option('-r', '--rsar', action='store_true',
-             help='Generate an RSAR dataset.')
-p.add_option('-c', '--c', action='store_true',
-             help='Write out the ROM as C code.')
-p.add_option('-v', '--verbose', action='store_true',
-             help='Print out assembled microcode in human-readable format.')
-p.add_option('-C', '--color', action='store_true',
-             help='Output messages in colour, if possible.')
 
-(options, args) = p.parse_args()
+class MicrocodeAssemblerApp(object):
 
-#code = StringIO.StringIO(code)
-#fname = 'example.ucode'
+    CPP_LOCATION = '/usr/bin/cpp'
 
-def die(x):
-    sys.stderr.write('%s: %s\n' % (sys.argv[0], x))
-    sys.exit(1)
-    
-if not args:
-    die('An input file must be provided.')
-    
-for arg in args:
-    try:
-        outname = options.out or os.path.splitext(arg)[0]
-        MicrocodeAssembler(options).process(arg, outname)
+    def __init__(self):
+        # Where's the C Preprocessor?
+        self.cpp = os.environ.get('CPP', self.CPP_LOCATION)
 
-    except IOError, e:
-        die('reading %s: %s' % (arg, e))
-    
+        # Command line options
+        self.parse_command_line_arguments()
+
+
+    def run(self):
+        for fname in self.args.files:
+            try:
+                outname = self.args.output or os.path.splitext(fname)[0]
+                MicrocodeAssembler(self.args).process(fname, outname)
+
+            except IOError as e:
+                print("{}: {}".format(sys.argv[0], x), out=sys.stderr)
+                sys.exit(1)
+
+
+    def parse_command_line_arguments(self):
+        p = argparse.ArgumentParser(description="Assemble simple microcode into various output files.")
+        p.add_argument('-p', '--preprocess', action='store_true',
+                       help="""Preprocess to standard output and stop. Useful for debugging preprocessing bugs.""")
+
+        p.add_argument('-o', '--output', metavar='FILENAME',
+                       help="""Output object file to FILENAME. Depending on the mode of operation,
+                       additional files may be generated with FILENAME as their
+                       stem. This only works if a single input file is
+                       specified.""")
+
+        p.add_argument('-B', '--no-bin', dest='bin', action='store_false',
+                       help="""Do not generate binary 8-bit ROM image files. The default is to generate
+                       them.""")
+
+        p.add_argument('-d', '--dump', action='store_true',
+                       help="""Print out raw hex values for the entire microcode ROM.""")
+
+        p.add_argument('-m', '--mappings', action='store_true',
+                       help="""Print out the symbol to bit mappings for conditions and signals.""")
+
+        p.add_argument('-s', '--stats', action='store_true',
+                       help="""Print out statistics about the assembled microcode ROM.""")
+
+        p.add_argument('-V', '--vhdl', action='store_true',
+                       help="""Generate FILENAME.vhdl with the ROM as a VHDL code fragment.""")
+
+        p.add_argument('-e', '--verilog', action='store_true',
+                       help="""Print out the ROM as one or more verilog binary list files.""")
+
+        p.add_argument('-a', '--altera', action='store_true',
+                       help="""Generate the ROM in Altera MIF format.""")
+
+        p.add_argument('-r', '--rsar', action='store_true',
+                       help="""Generate an RSAR dataset. RSAR can optimise microcode by finding superfluous
+                       conditionals. To simplify the search space, one dataset
+                       output will be generated for each output bit in the
+                       ROMs. RSAR is available at
+                       https://www.bedroomlan.org/projects/rsar.""")
+
+        p.add_argument('-c', '--c', action='store_true',
+                       help="""Write out the ROM as C code.""")
+
+        p.add_argument('-v', '--verbose', action='store_true',
+                       help="""Print out assembled microcode in human-readable format.""")
+
+        p.add_argument('-C', '--color', action='store_true',
+                       help="""Output messages in colour, if possible.""")
+
+        p.add_argument('--cpp', metavar="FILENAME", default=self.cpp,
+                       help="""Specify the location of the C Preprocessor (cpp) in your system. The
+                       location can also be set in the CPP environment variable.
+                       (default: %(default)s)""")
+
+        p.add_argument("files", metavar="INPUT-FILENAME", nargs="+",
+                       help="""An input file specifying the microcode to assemble. Multiple files may be
+                       provided. They are treated as separate assembly jobs producing separate outputs.""")
+
+        self.args = p.parse_args()
+
+        # Sanity checks
+        if self.args.output and len(self.args.files) > 1:
+            p.error("-o makes no sense if multiple input files are provided.")
+
+
+if __name__ == '__main__':
+    MicrocodeAssemblerApp().run()
+
+
 # End of file.
