@@ -1,3 +1,5 @@
+# MCASM—A Microcode Assembler for Hobbyist Projects
+
 This is a simple microcode assembler (or microassembler). It can be used to
 generate wide, horizontal microcode ROMs for relatively simple CPU
 architectures. It's mainly intended for hobbyists working on home-designed
