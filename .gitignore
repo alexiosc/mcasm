@@ -11,8 +11,11 @@
 # File manager and editor droppings
 .directory
 DEADJOE
+
+# Build files
 build
 debian/mcasm
+debian/python-module-stampdir
 
 # GNU screen
 hardcopy.[0-9]*
