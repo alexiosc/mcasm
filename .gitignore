@@ -11,6 +11,7 @@
 # File manager and editor droppings
 .directory
 DEADJOE
+build
 
 # GNU screen
 hardcopy.[0-9]*
