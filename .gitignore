@@ -12,6 +12,7 @@
 .directory
 DEADJOE
 build
+debian/mcasm
 
 # GNU screen
 hardcopy.[0-9]*
