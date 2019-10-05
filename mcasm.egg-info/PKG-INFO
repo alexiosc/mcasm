@@ -1,0 +1,20 @@
+Metadata-Version: 1.1
+Name: mcasm
+Version: 1.4.1
+Summary: Microcode assembler for homebrew CPUs.
+Home-page: https://www.bedroomlan.org/projects/mcasm
+Author: Alexios Chouchoulas
+Author-email: alexios@bedroomlan.org
+License: GNU GPL v2
+Description: Provides utilities for assembling microcode ROM images and other tables of
+        functions for use by hardware platforms.
+Platform: any
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)
+Classifier: Natural Language :: English
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: System :: Hardware
+Classifier: Topic :: Utilities

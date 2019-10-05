@@ -1,0 +1,6 @@
+mcasm
+setup.py
+mcasm.egg-info/PKG-INFO
+mcasm.egg-info/SOURCES.txt
+mcasm.egg-info/dependency_links.txt
+mcasm.egg-info/top_level.txt
