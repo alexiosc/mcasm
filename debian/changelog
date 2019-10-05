@@ -1,4 +1,4 @@
-dmcasm (1.4) unstable; urgency=low
+mcasm (1.4) unstable; urgency=low
 
   * Printing out preprocessed microcode now includes microcode comments.
 
