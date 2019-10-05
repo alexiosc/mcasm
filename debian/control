@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Alexios Chouchoulas <alexios@bedroomlan.org>
 Build-Depends: debhelper (>= 7), python3, python-setuptools (>= 0.6.16~), cdbs (>= 0.4.90~), cpp
 Standards-Version: 3.8.0
-Homepage: http://www.bedroomlan.org/projects/mcasm
+Homepage: https://www.bedroomlan.org/projects/mcasm
 
 Package: mcasm
 Architecture: any

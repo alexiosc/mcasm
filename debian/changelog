@@ -1,3 +1,10 @@
+mcasm (1.4.1) unstable; urgency=low
+
+  * Fixed URLs.
+  * Stepped versions because 1.4 had packaging issues.
+
+ -- Alexios Chouchoulas <alexios@bedroomlan.org>  Sat, 5 Oct 2019 13:54:34 +0300
+
 mcasm (1.4) unstable; urgency=low
 
   * Printing out preprocessed microcode now includes microcode comments.

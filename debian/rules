@@ -8,7 +8,8 @@
 
 # This is only needed if the packages don't start with python- (which
 # is the case here).
-DEB_PYTHON2_MODULE_PACKAGES = romtools
+#DEB_PYTHON2_MODULE_PACKAGES = mcasm
+DEB_PYTHON3_MODULE_PACKAGES = mcasm
 
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
