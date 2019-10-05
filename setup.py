@@ -1,7 +1,8 @@
 # -*- python -*-
-#
+# coding:utf-8
+
 """
-Copyright (c) 2011 Alexios Chouchoulas
+Copyright (c) 2011–2019 Alexios Chouchoulas
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,6 +19,8 @@ along with this program; if not, write to the Free Software Foundation,
 Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 """
 
+from __future__ import print_function
+
 import os
 import sys
 
@@ -28,7 +31,7 @@ except ImportError:
     sys.exit(1)
 
 from setuptools import setup, Extension
-import commands
+#import commands
 
 
 ###############################################################################
@@ -38,11 +41,11 @@ import commands
 ###############################################################################
 
 # These are obtained automatically from the files in debian/
-# PACKAGENAME = 'romtools'
+# PACKAGENAME = 'mcasm'
 # VERSION = '1.0'
 # AUTHOR = 'Alexios Chouchoulas'
 # AUTHOREMAIL = 'alexios@bedroomlan.org'
-# URL = 'http://www.bedroomlan.org/projects/romtools'
+# URL = 'https://www.bedroomlan.org/projects/mcasm'
 # DESCRIPTION = "Utilities for assembling microcode and other ROM images."
 
 
@@ -59,14 +62,13 @@ functions for use by hardware platforms.
 
 # Found at: http://pypi.python.org/pypi?%3Aaction=list_classifiers
 CLASSIFIERS = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU General Public License (GPL)",
+    "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
     "Natural Language :: English",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 2.6",
-    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3",
     "Topic :: System :: Hardware",
     "Topic :: Utilities",
     ]
@@ -137,7 +139,7 @@ if not m:
 AUTHOR, AUTHOREMAIL = m.groups()[:2]
 
 try:
-    DESCRIPTION = filter (None, re.findall ('Description:\s*(.+)\n', control)).pop()
+    DESCRIPTION = [ x for x in re.findall ('Description:\s*(.+)\n', control) if x is not None ].pop()
     assert DESCRIPTION
 except (IndexError, AssertionError):
     raise RuntimeError ('could not find Description: field in debian/control! Is it valid?')
@@ -150,19 +152,19 @@ except (IndexError, AssertionError):
 
 
 if 'build' in sys.argv:
-    print """
+    print("""
     Package:        %(PACKAGENAME)s version %(VERSION)s
     Debian package: %(DEB_PACKAGE)s %(DEB_VERSION)s
     Description:    %(DESCRIPTION)s
     Author:         %(AUTHOR)s <%(AUTHOREMAIL)s>
     Homepage:       %(URL)s
-    """ % locals()
+    """ % locals())
 
-    print "stamping version."
-    filename = PACKAGENAME + '/__init__.py'
-    init = open (filename).read()
-    init = re.sub ('@Version(:[ A-Za-z0-9._-]+)?@', '@Version: %s @' % VERSION, init)
-    open (filename, 'w').write (init)
+    # print("stamping version.")
+    # filename = PACKAGENAME + '/__init__.py'
+    # init = open (filename).read()
+    # init = re.sub ('@Version(:[ A-Za-z0-9._-]+)?@', '@Version: %s @' % VERSION, init)
+    # open (filename, 'w').write (init)
     
 
 ###############################################################################
@@ -171,12 +173,12 @@ if 'build' in sys.argv:
 #
 ###############################################################################
 
-#SWIG_I = 'dungeonspawn/dungeonspawn.i'
+#SWIG_I = 'mcasm/mcasm.i'
 #WRAPPER = 'dungeonmaker/dungeonmaker_wrap.cxx'
 #if not os.path.exists (WRAPPER):
-#    print "%s does not exist, running swig." % WRAPPER
+#    print("%s does not exist, running swig." % WRAPPER)
 #    cmd = "swig -classic -python -c++ %(SWIG_I)s" % locals()
-#    print cmd
+#    print(cmd)
 #    os.system (cmd)
 #    if not os.path.exists (WRAPPER):
 #        raise Exception ("Could not generate %s." % WRAPPER)
@@ -187,19 +189,20 @@ if 'build' in sys.argv:
 #
 ###############################################################################
 
-def pkgconfig(*packages, **kw):
-    """
-    Use pkgconfig to get details about libdungeonspawn.
-    """
-    flag_map = {'-I': 'include_dirs', '-L': 'library_dirs', '-l': 'libraries'}
-    for token in commands.getoutput("pkg-config --libs --cflags %s" % ' '.join(packages)).split():
-        kw.setdefault(flag_map.get(token[:2]), []).append(token[2:])
-    return kw
+# def pkgconfig(*packages, **kw):
+#     """
+#     Use pkgconfig to get details about mcasm.
+#     """
+#     pass
+#     flag_map = {'-I': 'include_dirs', '-L': 'library_dirs', '-l': 'libraries'}
+#     for token in commands.getoutput("pkg-config --libs --cflags %s" % ' '.join(packages)).split():
+#         kw.setdefault(flag_map.get(token[:2]), []).append(token[2:])
+#     return kw
 
 
-#pkginfo = pkgconfig('libdungeonspawn')
+#pkginfo = pkgconfig('libmcasm')
 #include_dirs = [ '-I' + x for x in pkginfo['include_dirs']]
-#dungeonspawn_ext = Extension('_dungeonspawn',
+#mcasm_ext = Extension('_mcasm',
 #                             sources=[SWIG_I],
 #                             swig_cpp=True,
 #                             swig_opts=['-classic', '-c++'] + include_dirs,
@@ -218,9 +221,9 @@ setup (
 
     classifiers=CLASSIFIERS,
     
-    packages=[PACKAGENAME],
+    #packages=[PACKAGENAME],
     scripts=['mcasm'],
-    #ext_modules=[dungeonspawn_ext],
+    #ext_modules=[mcasm_ext],
     #data_files=dataFilesIn ('fonts'),
     )
 
