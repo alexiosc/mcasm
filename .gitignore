@@ -1,0 +1,29 @@
+# -*- conf -*-
+# Emacs temporary and backup files.
+\#*
+*~
+*.bak
+.#*
+.~lock.*.ods#
+*.tmp
+**/tmp/
+
+# File manager and editor droppings
+.directory
+DEADJOE
+
+# GNU screen
+hardcopy.[0-9]*
+screenlog.[0-9]*
+
+# Temporary files I tend to leave lying around
+a
+a.py
+b
+b.py
+*.[hv]
+*.bin
+*.list
+*.mif
+
+# End of file.
