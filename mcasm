@@ -1123,7 +1123,10 @@ class MicrocodeAssemblerApp(object):
     def parse_command_line_arguments(self):
         p = argparse.ArgumentParser(description="Assemble simple microcode into various output files.")
         p.add_argument('-p', '--preprocess', action='store_true',
-                       help="""Preprocess to standard output and stop. Useful for debugging preprocessing bugs.""")
+                       help="""Preprocess to standard output and stop.
+                       Useful for debugging preprocessing bugs. As of mcasm 1.4, this also includes
+                       any comments in the source file, which in turn is useful for post-processing
+                       the microcode to parse To-Do tags etc.""")
 
         p.add_argument('-o', '--output', metavar='FILENAME',
                        help="""Output object file to FILENAME. Depending on the mode of operation,
