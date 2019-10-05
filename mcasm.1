@@ -155,7 +155,11 @@ can prove useful in generating hardware descriptions, as well as debugging.
 .BR -p ", " --preprocess
 Preprocess output and exit immediately. The default preprocessor is
 the C compiler's C Preprocessor. This may be overridden by setting the
-\fBCPP\fP environment variable to a suitable preprocessor.
+\fBCPP\fP environment variable to a suitable preprocessor. If this
+option is specified, the preprocessor should understand the \fB-CC\fP
+flag, which is used to include all comments in the output. The comments
+can then be fed to post-processors to look for To-Do, Fix-Me tags,
+generate instruction tables, etc.
 .TP
 .BR -s ", " --stats
 Output statistics on the microcode. The statistics include the
