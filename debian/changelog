@@ -1,3 +1,18 @@
+mcasm (1.4) unstable; urgency=low
+
+  * Printing out preprocessed microcode now includes microcode comments.
+
+ -- Alexios Chouchoulas <alexios@bedroomlan.org>  Sat, 5 Oct 2019 13:02:47 +0300
+
+mcasm (1.3) unstable; urgency=low
+
+  * Ported to Python 3.
+  * Improved command line parsing and code structure.
+  * Fixed a couple of minor bugs.
+  * Published on github.
+
+ -- Alexios Chouchoulas <alexios@bedroomlan.org>  Sun, 5 May 2019 13:22:31 +0300
+
 mcasm (1.2) unstable; urgency=low
 
   * Added Verilog source and altera MIF file support.
