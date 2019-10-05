@@ -1,8 +1,8 @@
-mcasm (1.4) unstable; urgency=low
+dmcasm (1.4) unstable; urgency=low
 
   * Printing out preprocessed microcode now includes microcode comments.
 
- -- Alexios Chouchoulas <alexios@bedroomlan.org>  Sat, 5 Oct 2019 13:02:47 +0300
+ -- Alexios Chouchoulas <alexios@bedroomlan.org>  Sat, 5 Oct 2019 13:22:35 +0300
 
 mcasm (1.3) unstable; urgency=low
 
