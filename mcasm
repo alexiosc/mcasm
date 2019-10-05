@@ -1,4 +1,4 @@
-#!/usr/bin/python2.6
+#!/usr/bin/python3
 # coding:utf-8
 #
 # Copyright © 2009–2019 Alexios Chouchoulas
@@ -379,6 +379,11 @@ class MicrocodeAssembler(object):
 
         try:
             cmd = [self.args.cpp, fname]
+            # We'll keep the comments if we're just preprocessing
+            # without compiling. Otherwise, let cpp(1) remove them to
+            # save us some work.
+            if self.args.preprocess:
+                cmd.append('-CC')
             source = subprocess.check_output(cmd).decode('utf-8')
 
         except subprocess.CalledProcessError as e:
@@ -390,8 +395,6 @@ class MicrocodeAssembler(object):
         if self.args.preprocess:
             sys.stdout.write(source)
             sys.exit(0)
-
-        #pprint.pprint(source.split('\n'))
 
         for line in self.getstatement(source.split('\n')):
             # Skip empty lines.
@@ -1105,6 +1108,11 @@ class MicrocodeAssemblerApp(object):
         for fname in self.args.files:
             try:
                 outname = self.args.output or os.path.splitext(fname)[0]
+                # Some sanity checks.
+                if not os.path.exists(fname):
+                    die("{} does not exist, bailing out.".format(fname))
+                if not os.path.isfile(fname):
+                    die("{} is not a file, bailing out.".format(fname))
                 MicrocodeAssembler(self.args).process(fname, outname)
 
             except IOError as e:
