@@ -1,3 +1,9 @@
+mcasm (1.4.2) unstable; urgency=low
+
+  * Fixed an error reporting bug.
+
+ -- Alexios Chouchoulas <alexios@bedroomlan.org>  Sun, 6 Oct 2019 20:31:20 +0300
+
 mcasm (1.4.1) unstable; urgency=low
 
   * Fixed URLs.
