@@ -24,15 +24,3 @@ dh_systemd_start
 dh_link
 dh_installmime
 dh_installgsettings
-dh_strip
-dh_strip_nondeterminism
-dh_compress
-dh_fixperms
-dh_makeshlibs
-dh_installdeb
-dh_perl
-dh_shlibdeps
-dh_gencontrol
-dh_md5sums
-dh_builddeb
-dh_builddeb

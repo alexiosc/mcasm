@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: mcasm
-Version: 1.4.2
+Version: 1.4.3
 Summary: Microcode assembler for homebrew CPUs.
 Home-page: https://www.bedroomlan.org/projects/mcasm
 Author: Alexios Chouchoulas
