@@ -1002,6 +1002,23 @@ class MicrocodeAssembler(object):
                 f.write(('#define GET_%(fieldname)s(x) ' + \
                              '((x) & 0x%(shiftbits)x)\n') % locals())
 
+        # Output signal definitions.
+        sigsort = lambda x: self.signals[x]
+        for sig in sorted(self.signals.keys(), key=sigsort):
+            pattern = self.signals[sig]
+            sig = re.sub('[^A-Za-z0-9_]', '_', sig).upper()
+
+            # Find the field this belongs to.
+            field = self.find_field(pattern)
+            if field:
+                fieldname, fieldbits, shift, shiftbits = field
+
+                fieldname = re.sub('[^A-Za-z0-9_]', '_', field[0]).upper()
+                pat = (pattern >> shift) & shiftbits
+
+                if fieldbits > 1:
+                    f.write('#define FIELD_%(sig)s 0x%(pat)x\n' % locals())
+
         # Output the signals in a way similar to the conditions.
         sigsort = lambda x: self.signals[x]
         for sig in sorted(self.signals.keys(), key=sigsort):
@@ -1029,7 +1046,6 @@ class MicrocodeAssembler(object):
                          '%(comment)s\n') %
                         locals())
             else:
-
                 f.write(('#define IS_%(sig)s(x) (((x) & 0x%(pattern)x) %(op)s 0x%(pattern)x)' +
                          '%(comment)s\n') %
                         locals())
